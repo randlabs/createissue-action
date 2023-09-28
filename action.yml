@@ -1,0 +1,45 @@
+name: 'CreateIssue'
+description: 'GitHub action to create repository issues'
+author: 'RandLabs Inc.'
+
+branding:
+  color: "blue"
+  icon: "edit-3"
+
+inputs:
+  title:
+    description: Issue title.
+    required: false
+  assignees:
+    description: A GitHub user or list of users to assign the issue.
+    required: false
+  labels:
+    description: A list of labels to add.
+    required: false
+  milestone:
+    description: Number of the milestone to assign the issue to.
+    required: false
+  filename:
+    description: The name of the file to use as the issue template.
+    default: .github/ISSUE_TEMPLATE.md
+    required: false
+  update_existing:
+    description: Update an open existing issue with the same title if it exists.
+    required: false
+    default: 'true'
+  search_type:
+    description: Existing types of issues to search for (none, open, closed or all).
+    required: false
+    default: 'open'
+
+outputs:
+  id:
+    description: 'The ID of the created/updated issue.'
+  url:
+    description: 'The location of the created/updated issue.'
+  action:
+    description: 'The executed action (none, created or updated).'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
