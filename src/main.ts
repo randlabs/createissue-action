@@ -29,21 +29,43 @@ async function run(): Promise<void> {
 	let title = core.getInput('title');
 
 	// Get assignees
-	let assignees = core.getMultilineInput('assignees');
-	assignees = parseMultipleItems(assignees, '`assignees` input');
+	let assignees = parseCommaSeparatedList(core.getInput('assignees'));
 
 	// Get labels
-	let labels = core.getMultilineInput('labels');
-	labels = parseMultipleItems(assignees, '`labels` input');
+	let labels = parseCommaSeparatedList(core.getInput('labels'));
 
 	// Get milestone
 	let milestone = getNumericInput('milestone', undefined, 1);
 
 	// Get update existing
-	let updateExisting = getBoolInput('update_existing', false);
+	let updateExisting = getBoolInput('update-existing', false);
 
 	// Get search existing
-	let searchType = getSelectionInput('search_type', ['none', 'open', 'closed', 'all'], 'open');
+	let searchType = getSelectionInput('search-type', ['none', 'open', 'closed', 'all'], 'open');
+
+	// Get search parameters
+	let searchTitleRegex: RegExp|undefined;
+	let searchLabels = labels;
+	if (searchType != 'none') {
+		try {
+			let pattern = core.getInput('search-title');
+			if (!pattern) {
+				pattern = '.*';
+			}
+			searchTitleRegex = new RegExp(pattern, 'ui');
+		}
+		catch (err: any) {
+			throw new Error('invalid `search-title` regex pattern');
+		}
+
+		let input = parseCommaSeparatedList(core.getInput('search-labels'));
+		if (input) {
+			searchLabels = input;
+		}
+		if (!searchLabels) {
+			throw new Error('no `labels` nor `search-labels` input were specified for search');
+		}
+	}
 
 	// Get filename
 	let filename = core.getInput('filename');
@@ -51,13 +73,42 @@ async function run(): Promise<void> {
 		filename = '.github/ISSUE_TEMPLATE.md';
 	}
 
-	// Get the file
+	// Get the template file and load it
 	const curDir = (process.env.GITHUB_WORKSPACE as string) || '.';
 	const fullFilename = path.join(curDir, filename);
 	if (!fs.existsSync(fullFilename)) {
 		throw new Error(`file ${filename} could not be found in your project's workspace, try cloning the repository first`)
 	}
 	const template = fs.readFileSync(fullFilename, 'utf8');
+
+	// Try to locate an already existing issue
+	let issueId = 0;
+	let issueUrl = '';
+	let existingIssue: Record<string, any>|null = null;
+	if (searchType != 'none') {
+		for await (const response of octokit.paginate.iterator(
+			octokit.rest.issues.listForRepo,
+			{
+				repo,
+				owner,
+				state: searchType as 'open' | 'closed' | 'all',
+				labels: searchLabels,
+				per_page: 100,
+			}
+		)) {
+			for (const issue of response.data) {
+				if ((!searchTitleRegex) || searchTitleRegex.test(title)) {
+					existingIssue = issue;
+					issueId = issue.id;
+					issueUrl = issue.url;
+					break;
+				}
+			}
+			if (issueId > 0) {
+				break;
+			}
+		}
+	}
 
 	// Create template processor
 	const nj = nunjucks.configure({
@@ -71,7 +122,7 @@ async function run(): Promise<void> {
 	// Parse template
 	const parsedTemplate = fm<TemplateAttributes>(template);
 
-	const templateVars = {
+	const templateVars: Record<string, any> = {
 		repo,
 		owner,
 		env: process.env,
@@ -79,10 +130,13 @@ async function run(): Promise<void> {
 		context: github.context,
 		input: {
 			title,
-			assignees: assignees.join(','),
-			labels: labels.join(','),
+			assignees,
+			labels,
 			milestone
 		}
+	}
+	if (existingIssue) {
+		templateVars.existingIssue = existingIssue;
 	}
 
 	const body = nj.renderString(parsedTemplate.body, templateVars);
@@ -91,11 +145,15 @@ async function run(): Promise<void> {
 	}
 	if (typeof parsedTemplate.attributes.assignees === 'string') {
 		const s = nj.renderString(parsedTemplate.attributes.assignees, templateVars);
-		assignees = parseMultipleItems(s, '`assignees` attribute');
+		if (s) {
+			assignees = parseCommaSeparatedList(s);
+		}
 	}
 	if (typeof parsedTemplate.attributes.labels === 'string') {
 		const s = nj.renderString(parsedTemplate.attributes.labels, templateVars);
-		labels = parseMultipleItems(s, '`labels` attribute');
+		if (s) {
+			labels = parseCommaSeparatedList(s);
+		}
 	}
 	if (typeof parsedTemplate.attributes.milestone === 'string') {
 		milestone = parseInt(parsedTemplate.attributes.milestone, 10);
@@ -110,33 +168,7 @@ async function run(): Promise<void> {
 		throw new Error('unable to determine issue title');
 	}
 
-	// Try to locate an already existing issue
-	let issueId = 0;
-	let issueUrl = '';
-	if (searchType != 'none') {
-		for await (const response of octokit.paginate.iterator(
-			octokit.rest.issues.listForRepo,
-			{
-				repo,
-				owner,
-				state: searchType as 'open' | 'closed' | 'all',
-				labels: labels.join(','),
-				per_page: 100,
-			}
-		)) {
-			for (const issue of response.data) {
-				if (issue.title === title) {
-					issueId = issue.id;
-					issueUrl = issue.url;
-					break;
-				}
-			}
-			if (issueId > 0) {
-				break;
-			}
-		}
-	}
-
+	// Create or update existing issue
 	let issueAction = 'none';
 	if (issueId == 0) {
 		const { data } = await octokit.rest.issues.create({
@@ -144,29 +176,27 @@ async function run(): Promise<void> {
 			owner,
 			title,
 			body,
-			assignees,
-			labels: labels,
+			assignees: assignees.split(','),
+			labels: labels.split(','),
 			milestone,
 		});
 		issueId = data.id;
 		issueUrl = data.url;
 		issueAction = 'created';
 	}
-	else {
-		if (updateExisting) {
-			const { data } = await octokit.rest.issues.update({
-				repo,
-				owner,
-				issue_number: issueId,
-				title,
-				body,
-				assignees,
-				labels,
-				milestone,
-			});
-			issueUrl = data.url;
-			issueAction = 'updated';
-		}
+	else if (updateExisting) {
+		const { data } = await octokit.rest.issues.update({
+			repo,
+			owner,
+			issue_number: issueId,
+			title,
+			body,
+			assignees: assignees.split(','),
+			labels: labels.split(','),
+			milestone,
+		});
+		issueUrl = data.url;
+		issueAction = 'updated';
 	}
 	
 	// Set action's output
@@ -175,19 +205,8 @@ async function run(): Promise<void> {
 	core.setOutput('action', issueAction);
 }
 
-function parseMultipleItems(input: string|string[], itemType: string): string[] {
-	if (!Array.isArray(input)) {
-		input = input.split(',');
-	}
-	const res: string[] = [];
-	for (let s of input) {
-		s = s.trim();
-		if (!s) {
-			throw new Error('empty entry found in ' + itemType);
-		}
-		res.push(s);
-	}
-	return res;
+function parseCommaSeparatedList(input: string): string {
+	return input.split(',').map(x => x.trim()).filter(x => (x.length > 0)).join(',');
 }
 
 // -----------------------------------------------------------------------------

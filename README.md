@@ -42,14 +42,20 @@ inputs:
     description: The name of the file to use as the issue template.
     default: .github/ISSUE_TEMPLATE.md
     required: false
-  update_existing:
+  update-existing:
     description: Update an open existing issue with the same title if it exists.
     required: false
     default: 'true'
-  search_type:
+  search-type:
     description: Existing types of issues to search for (none, open, closed or all).
     required: false
     default: 'open'
+  search-title:
+    description: A javascript regex pattern. Defaults to any (*).
+    required: false
+  search-labels:
+    description: A list of labels to search for. Defaults to the values specified in labels.
+    required: false
 ```
 
 ### Outputs
@@ -103,6 +109,7 @@ The following custom variables are defined for use:
 * `date`: A javascript object with the current local date and time.
 * `context`: The github context object. See the [documentation](https://docs.github.com/en/actions/learn-github-actions/contexts#github-context) for details.
 * `input`: An object containing the following fields: `title`, `assignees`, `labels` and `milestone`. They contain the input values passed to the workflow.
+* `existingIssue`: If a previous issue matching the title and labels exists, this variable will contain its data.
 
 **IMPORTANT**: Some variables, like the environment ones, may contain sensitive information. Handle with care.
 
