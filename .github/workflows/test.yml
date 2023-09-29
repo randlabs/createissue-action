@@ -25,3 +25,5 @@ jobs:
           update-existing: true
           search-type: all
           search-title: 'test\sissue\s.*'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
