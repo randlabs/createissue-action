@@ -1,6 +1,6 @@
 title: Test issue #1
 labels: test, sample
-milestone: {% if existingIssue %}{{ existingIssue.milestone + 1 }}{% else %}0{% endif %}
+milestone: {% if existingIssue %}{{ existingIssue.milestone + 1 }}{% else %}1{% endif %}
 ---
 This is a test issue created on {{ date | date('dddd, MMMM Do') }}
 
