@@ -19,7 +19,6 @@ jobs:
         with:
           title: 'Test issue #1'
           labels: test
-          milestone: 1
           filename: .github/__tests__/SAMPLE_ISSUE.md
           update-existing: true
           search-type: all
