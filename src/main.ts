@@ -77,26 +77,39 @@ async function run(): Promise<void> {
 	let issueUrl = '';
 	let existingIssue: Record<string, any>|null = null;
 	if (searchType != 'none') {
-		for await (const response of octokit.paginate.iterator(
-			octokit.rest.issues.listForRepo,
-			{
-				repo,
-				owner,
-				state: searchType as 'open' | 'closed' | 'all',
-				labels: searchLabels,
-				per_page: 100,
-			}
-		)) {
-			for (const issue of response.data) {
-				if ((!searchTitleRegex) || searchTitleRegex.test(title)) {
-					existingIssue = issue;
-					issueId = issue.id;
-					issueUrl = issue.url;
+		try {
+			for await (const response of octokit.paginate.iterator(
+				octokit.rest.issues.listForRepo,
+				{
+					repo,
+					owner,
+					state: searchType as 'open' | 'closed' | 'all',
+					labels: searchLabels,
+					per_page: 100
+				}
+			)) {
+				for (const issue of response.data) {
+					if ((!searchTitleRegex) || searchTitleRegex.test(title)) {
+						// Convert labels to just strings (we don't handle the other properties)
+						existingIssue = issue;
+						if (existingIssue.labels) {
+							existingIssue.labels = existingIssue.labels.map((x: any) => ((typeof x === 'object') ? x.name : x));
+						}
+
+						issueId = issue.number;
+						issueUrl = issue.url;
+						break;
+					}
+				}
+				if (issueId > 0) {
 					break;
 				}
 			}
-			if (issueId > 0) {
-				break;
+		}
+		catch (err: any) {
+			// Handle issue not found error
+			if (err.status !== 404 && err.message !== 'Not Found') {
+				throw err;
 			}
 		}
 	}
@@ -178,7 +191,7 @@ async function run(): Promise<void> {
 				milestone
 			})
 		});
-		issueId = data.id;
+		issueId = data.number;
 		issueUrl = data.url;
 		issueAction = 'created';
 	}
