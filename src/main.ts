@@ -147,9 +147,12 @@ async function run(): Promise<void> {
 		}
 	}
 	if (typeof parsedTemplate.headers.milestone === 'string') {
-		milestone = parseInt(parsedTemplate.headers.milestone, 10);
-		if (Number.isNaN(milestone) || milestone < 1) {
-			throw new Error('invalid `milestone` attribute');
+		const s = nj.renderString(parsedTemplate.headers.milestone, templateVars);
+		if (s) {
+			milestone = parseInt(s, 10);
+			if (Number.isNaN(milestone) || milestone < 1) {
+				throw new Error('invalid `milestone` attribute');
+			}
 		}
 	}
 
