@@ -2,19 +2,10 @@ import * as core from '@actions/core';
 import * as github from '@actions/github';
 import * as fs from 'fs';
 import * as path from 'path';
-import fm from 'front-matter';
 import nunjucks from 'nunjucks';
 import moment from 'moment';
 import { getBoolInput, getNumericInput, getOctokit, getRepoOwnerInput, getSelectionInput } from './helpers';
-
-// -----------------------------------------------------------------------------
-
-type TemplateAttributes = {
-	title?: string;
-	assignees?: string;
-	labels?: string;
-	milestone?: string;
-}
+import { parse as parseTemplate } from './template/parser';
 
 // -----------------------------------------------------------------------------
 
@@ -110,6 +101,9 @@ async function run(): Promise<void> {
 		}
 	}
 
+	// Parse template
+	const parsedTemplate = parseTemplate(template);
+
 	// Create template processor
 	const nj = nunjucks.configure({
 		autoescape: false,
@@ -118,9 +112,6 @@ async function run(): Promise<void> {
 	nj.addFilter('date', (date: moment.MomentInput, format: string): string => {
 		return moment(date).format(format);
 	});
-
-	// Parse template
-	const parsedTemplate = fm<TemplateAttributes>(template);
 
 	const templateVars: Record<string, any> = {
 		repo,
@@ -140,23 +131,23 @@ async function run(): Promise<void> {
 	}
 
 	const body = nj.renderString(parsedTemplate.body, templateVars);
-	if (typeof parsedTemplate.attributes.title === 'string') {
-		title = nj.renderString(parsedTemplate.attributes.title, templateVars);
+	if (typeof parsedTemplate.headers.title === 'string') {
+		title = nj.renderString(parsedTemplate.headers.title, templateVars);
 	}
-	if (typeof parsedTemplate.attributes.assignees === 'string') {
-		const s = nj.renderString(parsedTemplate.attributes.assignees, templateVars);
+	if (typeof parsedTemplate.headers.assignees === 'string') {
+		const s = nj.renderString(parsedTemplate.headers.assignees, templateVars);
 		if (s) {
 			assignees = parseCommaSeparatedList(s);
 		}
 	}
-	if (typeof parsedTemplate.attributes.labels === 'string') {
-		const s = nj.renderString(parsedTemplate.attributes.labels, templateVars);
+	if (typeof parsedTemplate.headers.labels === 'string') {
+		const s = nj.renderString(parsedTemplate.headers.labels, templateVars);
 		if (s) {
 			labels = parseCommaSeparatedList(s);
 		}
 	}
-	if (typeof parsedTemplate.attributes.milestone === 'string') {
-		milestone = parseInt(parsedTemplate.attributes.milestone, 10);
+	if (typeof parsedTemplate.headers.milestone === 'string') {
+		milestone = parseInt(parsedTemplate.headers.milestone, 10);
 		if (Number.isNaN(milestone) || milestone < 1) {
 			throw new Error('invalid `milestone` attribute');
 		}

@@ -1,4 +1,3 @@
----
 title: Test issue #1
 labels: test, sample
 milestone: {% if existingIssue %}{{ existingIssue.milestone + 1 }}{% else %}0{% endif %}

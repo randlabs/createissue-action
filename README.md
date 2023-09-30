@@ -75,27 +75,26 @@ outputs:
 A template is composed of two main areas.
 
 ```
----
 key-1: some-value
-key-2: some-other-value
----
+key-2: 'some-other-value with spaces at the end    '
 content
 ```
 
 An example:
 
 ```
----
 title: Something is not working
 assignees: @dev-team
 labels: bug
----
 Someone just pushed a commit {{ context.sha }} but it does not compile.
 ```
 
-Between `---` lines, a set of key/value fields. Keys can be: `title`, `assignees`, `labels` or `milestone`. If specified, they override the values passed as input parameters.`
+At the top, you can specify an optional set of `key: value` fields. You can enclose a value between single or double quotes if you need to add spaces at the beginning or the
+end but take into account no escaping is done, only the starting and ending quotes are removed.
 
-Below the second dash line, the issue's body.
+Keys can be: `title`, `assignees`, `labels` or `milestone`.
+
+When the parser finds a line not contain a valid key/value pair, the parser will assume it is the beginning of the issue's body.
 
 The template engine uses [Nunjucks](https://mozilla.github.io/nunjucks/) to parse items. Please check the [templating docs](https://mozilla.github.io/nunjucks/templating.html) to know, for e.g., how to insert variables.
 
