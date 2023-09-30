@@ -1,9 +1,9 @@
 title: Test issue #1
 labels: test, sample
-milestone: {% if existingIssue %}{{ existingIssue.milestone + 1 }}{% else %}1{% endif %}
+assignees: {{ context.actor }}
 ---
-This is a test issue created on {{ date | date('dddd, MMMM Do') }}
+This is a test issue milestone: {% if existingIssue %}updated{% else %}created{% endif %} on {{ date | date('dddd, MMMM Do') }}
 
 The hash is: {{ context.sha }}
 
-{% if existingIssue %}Milestone was {{ existingIssue.milestone }}{% else %}No previous milestone{% endif %}
+{% if existingIssue %}Existing issue node id: {{ existingIssue.node_id }}{% endif %}

@@ -18,7 +18,6 @@ jobs:
         uses: randlabs/createissue-action@v1
         with:
           title: 'Test issue #1'
-          assignees: mxmauro
           labels: test
           milestone: 1
           filename: .github/__tests__/SAMPLE_ISSUE.md

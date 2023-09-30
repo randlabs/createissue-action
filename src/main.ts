@@ -122,9 +122,11 @@ async function run(): Promise<void> {
 		input: {
 			title,
 			assignees,
-			labels,
-			milestone
+			labels
 		}
+	}
+	if (milestone) {
+		templateVars.input.milestone = milestone
 	}
 	if (existingIssue) {
 		templateVars.existingIssue = existingIssue;
@@ -172,7 +174,9 @@ async function run(): Promise<void> {
 			body,
 			assignees: assignees.split(','),
 			labels: labels.split(','),
-			milestone,
+			...(milestone && {
+				milestone
+			})
 		});
 		issueId = data.id;
 		issueUrl = data.url;
@@ -187,7 +191,9 @@ async function run(): Promise<void> {
 			body,
 			assignees: assignees.split(','),
 			labels: labels.split(','),
-			milestone,
+			...(milestone && {
+				milestone
+			})
 		});
 		issueUrl = data.url;
 		issueAction = 'updated';
